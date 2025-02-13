@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
-import { join } from "path";
+
+// Geçici olarak memory'de tutacağımız dosyalar için bir Map
+const uploadedFiles = new Map();
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,14 +19,15 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Dosya adını benzersiz yap
+    // Benzersiz bir dosya adı oluştur
     const filename = `${Date.now()}-${file.name}`;
 
-    // Dosyayı public klasörüne kaydet
-    const path = join(process.cwd(), "public/uploads", filename);
-
-    // Klasörü oluştur (eğer yoksa)
-    await writeFile(path, buffer);
+    // Dosyayı memory'de sakla
+    uploadedFiles.set(filename, {
+      buffer,
+      type: file.type,
+      name: file.name,
+    });
 
     return NextResponse.json(
       {
@@ -34,7 +36,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Dosya yükleme hatası:", error);
     return NextResponse.json(
       { message: "Dosya yüklenirken bir hata oluştu" },
@@ -43,8 +45,21 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// İsteğe bağlı olarak dosyayı almak için GET endpoint'i
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const filename = url.searchParams.get("filename");
+
+  if (!filename || !uploadedFiles.has(filename)) {
+    return NextResponse.json({ message: "Dosya bulunamadı" }, { status: 404 });
+  }
+
+  const file = uploadedFiles.get(filename);
+
+  return new NextResponse(file.buffer, {
+    headers: {
+      "Content-Type": file.type,
+      "Content-Disposition": `attachment; filename="${file.name}"`,
+    },
+  });
+}
