@@ -38,8 +38,8 @@ export default function UploadPage() {
       } else {
         setMessage(`❌ Yükleme başarısız: ${result.message}`);
       }
-    } catch (error: any) {
-      setMessage(`❌ Yükleme sırasında bir hata oluştu: ${error.message}`);
+    } catch (_error: any) {
+      setMessage(`❌ Yükleme sırasında bir hata oluştu`);
     } finally {
       setLoading(false);
       setSelectedFile(null);
